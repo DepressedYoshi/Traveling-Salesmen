@@ -1,13 +1,19 @@
 using System;
 using System.Collections.Generic;
+using TMPro;
 
-public class Graph<T, E>
+public class MyGraph<T, E>
 {
     // Adjacency Map: Each vertex maps to a dictionary of adjacent vertices and edge values
     private Dictionary<T, Dictionary<T, E>> adjacencyMap;
     private bool isDirected;
 
-    public Graph(bool directed = false)
+    public MyGraph()
+    {
+        adjacencyMap = new Dictionary<T, Dictionary<T, E>>();
+        isDirected = false;
+    }
+    public MyGraph(bool directed)
     {
         adjacencyMap = new Dictionary<T, Dictionary<T, E>>();
         isDirected = directed;
