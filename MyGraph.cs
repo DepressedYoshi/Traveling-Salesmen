@@ -205,6 +205,50 @@ public class MyGraph<T, E>
         }
     }
 
+    //traversal nighmare strats here 
+
+public List<T> GetShortestPathDFS(T start, T goal)
+{
+    List<T> bestPath = null;
+    float bestWeight = float.MaxValue;
+    HashSet<T> visited = new HashSet<T>();
+
+    void DFS(T current, List<T> path, float currentWeight)
+    {
+        if (currentWeight >= bestWeight) return; // Prune worse paths
+
+        path.Add(current);
+        visited.Add(current);
+
+        if (current.Equals(goal))
+        {
+            if (currentWeight < bestWeight)
+            {
+                bestWeight = currentWeight;
+                bestPath = new List<T>(path);
+            }
+        }
+        else
+        {
+            foreach (var neighbor in adjacencyMap[current])
+            {
+                if (!visited.Contains(neighbor.Key))
+                {
+                    DFS(neighbor.Key, path, currentWeight + Convert.ToSingle(neighbor.Value));
+                }
+            }
+        }
+
+        // Backtrack
+        path.RemoveAt(path.Count - 1);
+        visited.Remove(current);
+    }
+
+    DFS(start, new List<T>(), 0);
+    return bestPath;
+}
+
+
     // Debugging: Print adjacency map
     public void PrintGraph()
     {
