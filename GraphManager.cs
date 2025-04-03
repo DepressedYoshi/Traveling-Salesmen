@@ -1,23 +1,24 @@
 using System;
 using System.Collections.Generic;
-using TMPro;
 using UnityEngine;
+using TMPro;
 
 public class GraphManager : MonoBehaviour
-{    public GameObject vertexPrefab; 
-    public GameObject edgePrefab;   
+{
+    public GameObject vertexPrefab;
+    public GameObject edgePrefab;
 
-    private MyGraph<GameObject, float> graph; 
-    private List<GameObject> vertices;
-    private GameObject selectedVertex = null; 
+    private MyGraph<Node, Edge> graph;
+    private List<Node> vertices;
+    private Node selectedVertex = null;
 
     private LineRenderer tempLine;
     private GameObject tempEdgeObj;
 
     private void Start()
     {
-        graph = new MyGraph<GameObject, float>(false); 
-        vertices = new List<GameObject>();
+        graph = new MyGraph<Node, Edge>(false);
+        vertices = new List<Node>();
     }
 
     private void Update()
@@ -48,63 +49,59 @@ public class GraphManager : MonoBehaviour
 
     private void HandleVertexClick(GameObject clickedVertex)
     {
+        Node clickedNode = vertices.Find(node => node.vertexObj == clickedVertex);
+
+        if (clickedNode == null) return;
+
         if (selectedVertex == null)
         {
-            SelectVertex(clickedVertex);
+            SelectVertex(clickedNode);
         }
-        else if (selectedVertex == clickedVertex)
+        else if (selectedVertex == clickedNode)
         {
             DeselectVertex();
         }
         else
         {
-            CreateEdge(selectedVertex, clickedVertex);
+            CreateEdge(selectedVertex, clickedNode);
             DeselectVertex();
         }
     }
 
     private void CreateNewVertex(Vector2 position)
     {
-        GameObject newVertex = CreateVertex(position);
-        
+        GameObject vertexObj = Instantiate(vertexPrefab, position, Quaternion.identity);
+        vertexObj.name = "Vertex_" + graph.NumVertices();
+
+        Node newNode = new Node(vertexObj);
+        graph.InsertVertex(newNode);
+        vertices.Add(newNode);
+
+        SetRandomColor(vertexObj);
+
         if (selectedVertex != null)
         {
-            CreateEdge(selectedVertex, newVertex);
+            CreateEdge(selectedVertex, newNode);
             DeselectVertex();
         }
     }
 
-    GameObject CreateVertex(Vector2 position)
-    {
-        GameObject vertex = Instantiate(vertexPrefab, position, Quaternion.identity);
-        vertex.name = "Vertex_" + graph.NumVertices().ToString();
-        graph.InsertVertex(vertex);
-        vertices.Add(vertex);
-
-        SetRandomColor(vertex);
-
-        return vertex;
-    }
-
-    private void CreateEdge(GameObject vertexA, GameObject vertexB)
+    private void CreateEdge(Node nodeA, Node nodeB)
     {
         try
         {
-            float randomWeight = UnityEngine.Random.Range(0f, 100f); 
-            graph.InsertEdge(vertexA, vertexB, randomWeight);
-
+            float randomWeight = UnityEngine.Random.Range(0f, 100f);
             GameObject edgeObj = Instantiate(edgePrefab);
-            LineRenderer lr = edgeObj.GetComponent<LineRenderer>();
-            if (lr == null)
-            {
-                lr = edgeObj.AddComponent<LineRenderer>();
-            }
+            LineRenderer lr = edgeObj.GetComponent<LineRenderer>() ?? edgeObj.AddComponent<LineRenderer>();
 
-            SetupEdgeLineRenderer(lr, vertexA.transform.position, vertexB.transform.position);
-            //display the weight 
-            GameObject weightLabel = CreateEdgeLabel(vertexA.transform.position, vertexB.transform.position, randomWeight);
+            SetupEdgeLineRenderer(lr, nodeA.vertexObj.transform.position, nodeB.vertexObj.transform.position);
+            GameObject weightLabel = CreateEdgeLabel(nodeA.vertexObj.transform.position, nodeB.vertexObj.transform.position, randomWeight);
             weightLabel.transform.parent = edgeObj.transform;
-            Debug.Log($"Created edge between {vertexA.name} and {vertexB.name} with weight {randomWeight}");
+
+            Edge newEdge = new Edge(lr, randomWeight);
+            graph.InsertEdge(nodeA, nodeB, newEdge);
+
+            Debug.Log($"Created edge between {nodeA.vertexObj.name} and {nodeB.vertexObj.name} with weight {randomWeight}");
         }
         catch (Exception e)
         {
@@ -112,41 +109,36 @@ public class GraphManager : MonoBehaviour
         }
     }
 
-    GameObject CreateEdgeLabel(Vector3 start, Vector3 end, float weight)
-{
-    GameObject textObj = new GameObject("EdgeWeight");
-    textObj.transform.position = (start + end) / 2; // Set position to the middle of the edge
+    private GameObject CreateEdgeLabel(Vector3 start, Vector3 end, float weight)
+    {
+        GameObject textObj = new GameObject("EdgeWeight");
+        textObj.transform.position = (start + end) / 2;
 
-    TextMeshPro textMesh = textObj.AddComponent<TextMeshPro>();
-    textMesh.text = weight.ToString("F1"); // Display weight with one decimal place
-    textMesh.fontSize = 3;
-    textMesh.alignment = TextAlignmentOptions.Center;
-    textMesh.color = Color.black; // Change to any color you like
-    textMesh.sortingOrder = 5;
-    return textObj;
-}
+        TextMeshPro textMesh = textObj.AddComponent<TextMeshPro>();
+        textMesh.text = weight.ToString("F1");
+        textMesh.fontSize = 3;
+        textMesh.alignment = TextAlignmentOptions.Center;
+        textMesh.color = Color.black;
+        textMesh.sortingOrder = 5;
+        return textObj;
+    }
 
-
-    private void SetupEdgeLineRenderer(LineRenderer lr, Vector3 start, Vector3 end){
+    private void SetupEdgeLineRenderer(LineRenderer lr, Vector3 start, Vector3 end)
+    {
         lr.positionCount = 2;
         lr.SetPosition(0, start);
         lr.SetPosition(1, end);
 
-        // Make the line thicker
         lr.startWidth = 0.15f;
         lr.endWidth = 0.15f;
-
-        // Assign a brighter color (like blue)
-        Color lineColor = new Color(0.2f, 0.6f, 1f); // Light blue
-        lr.startColor = lineColor;
-        lr.endColor = lineColor;
-
-        // Improve appearance
         lr.material = new Material(Shader.Find("Sprites/Default"));
-        lr.numCapVertices = 10; // Makes the line ends rounded
-        lr.numCornerVertices = 10; // Smooths the corners
-    }
 
+        lr.startColor = Color.blue;
+        lr.endColor = Color.blue;
+
+        lr.numCapVertices = 10;
+        lr.numCornerVertices = 10;
+    }
 
     private void SetRandomColor(GameObject vertex)
     {
@@ -158,54 +150,22 @@ public class GraphManager : MonoBehaviour
         }
     }
 
-    private void SelectVertex(GameObject vertex)
+    private void SelectVertex(Node node)
     {
-        selectedVertex = vertex;
-        HighlightVertex(selectedVertex, true);
+        selectedVertex = node;
+        selectedVertex.Highlight(true);
     }
 
-   private void DeselectVertex()
+    private void DeselectVertex()
     {
         if (selectedVertex != null)
         {
-            HighlightVertex(selectedVertex, false);
+            selectedVertex.Highlight(false);
             selectedVertex = null;
         }
     }
 
-    private void HighlightVertex(GameObject vertex, bool highlight)
-{
-    Transform outline = vertex.transform.Find("Outline"); // Check if the outline already exists
-
-    if (highlight)
-    {
-        if (outline == null) // If no outline exists, create one
-        {
-            GameObject outlineObj = new GameObject("Outline");
-            outlineObj.transform.parent = vertex.transform;
-            outlineObj.transform.position = vertex.transform.position;
-
-            SpriteRenderer originalSR = vertex.GetComponent<SpriteRenderer>();
-            SpriteRenderer outlineSR = outlineObj.AddComponent<SpriteRenderer>();
-
-            outlineSR.sprite = originalSR.sprite; // Copy the same sprite
-            outlineSR.sortingOrder = originalSR.sortingOrder - 1; // Render behind the main vertex
-            outlineSR.color = Color.yellow; // Set outline color to yellow
-
-            outlineObj.transform.localScale = Vector3.one * 1.2f; // Slightly scale up
-        }
-    }
-    else
-    {
-        if (outline != null)
-        {
-            Destroy(outline.gameObject); // Remove the outline when deselecting
-        }
-    }
-}
-
-
-   private void UpdateTempLine(Vector2 mousePos)
+    private void UpdateTempLine(Vector2 mousePos)
     {
         if (selectedVertex != null)
         {
@@ -213,7 +173,7 @@ public class GraphManager : MonoBehaviour
             {
                 SetupTempLine();
             }
-            tempLine.SetPosition(0, selectedVertex.transform.position);
+            tempLine.SetPosition(0, selectedVertex.vertexObj.transform.position);
             tempLine.SetPosition(1, mousePos);
         }
         else
