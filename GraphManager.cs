@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
+using System.Collections;
 
 public class GraphManager : MonoBehaviour
 {
@@ -24,6 +25,13 @@ public class GraphManager : MonoBehaviour
     private void Update()
     {
         Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+        if (Input.GetKeyDown(KeyCode.Space) && vertices.Count >= 2)
+    {
+        // For testing, just use the first two nodes
+    
+        StartDFS(vertices[0], vertices[1]);
+    }
+
 
         if (Input.GetMouseButtonDown(0))
         {
@@ -31,7 +39,10 @@ public class GraphManager : MonoBehaviour
         }
 
         UpdateTempLine(mousePos);
+
     }
+
+
 
     private void HandleMouseClick(Vector2 mousePos)
     {
@@ -202,4 +213,93 @@ public class GraphManager : MonoBehaviour
             tempLine = null;
         }
     }
+
+    public void StartDFS(Node start, Node goal)
+{
+    StartCoroutine(DFS_Animate(start, goal));
+}
+
+private IEnumerator DFS_Animate(Node start, Node goal)
+{
+    List<Node> bestPath = null;
+    float bestWeight = float.MaxValue;
+    HashSet<Node> visited = new HashSet<Node>();
+
+    List<Node> currentPath = new List<Node>();
+
+    IEnumerator DFS(Node current, float currentWeight)
+    {
+        visited.Add(current);
+        currentPath.Add(current);
+
+        // Highlight current node
+        current.Highlight(true);
+        yield return new WaitForSeconds(0.1f);
+
+        if (current == goal)
+        {
+            if (currentWeight < bestWeight)
+            {
+                bestWeight = currentWeight;
+                bestPath = new List<Node>(currentPath);
+            }
+        }
+        else
+        {
+            foreach (var neighborPair in graph.OutgoingEdges(current))
+            {
+                Node neighbor = neighborPair.Item1;
+                Edge edge = neighborPair.Item2;
+
+                if (!visited.Contains(neighbor))
+                {
+                    // Highlight the edge
+                    edge.Highlight(true);
+                    yield return new WaitForSeconds(0.5f);
+
+                    yield return StartCoroutine(DFS(neighbor, currentWeight + edge.weight));
+
+                    // Unhighlight edge after returning
+                    edge.Highlight(false);
+                }
+            }
+        }
+
+        // Backtrack
+        current.Highlight(false);
+        visited.Remove(current);
+        currentPath.RemoveAt(currentPath.Count - 1);
+    }
+
+    // Start DFS Coroutine
+    yield return StartCoroutine(DFS(start, 0));
+
+    // Step 2 — Final Path Highlighting
+    if (bestPath != null)
+    {
+        Debug.Log("Shortest Path Found: " + string.Join(" -> ", bestPath.ConvertAll(node => node.vertexObj.name)));
+        yield return AnimateFinalPath(bestPath);
+    }
+    else
+    {
+        Debug.LogWarning("No path found.");
+    }
+}
+private IEnumerator AnimateFinalPath(List<Node> path)
+{
+    for (int i = 0; i < path.Count - 1; i++)
+    {
+        Node from = path[i];
+        Node to = path[i + 1];
+        Edge edge = graph.GetEdge(from, to);
+
+        from.Highlight(true);
+        edge.Highlight(true);
+
+        yield return new WaitForSeconds(0.5f);
+    }
+
+    path[^1].Highlight(true); // Highlight the last node
+}
+
 }
