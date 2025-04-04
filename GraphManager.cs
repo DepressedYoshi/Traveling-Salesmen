@@ -234,7 +234,7 @@ private IEnumerator DFS_Animate(Node start, Node goal)
 
         // Highlight current node
         current.Highlight(true);
-        yield return new WaitForSeconds(0.1f);
+        yield return new WaitForSeconds(0.01f);
 
         if (current == goal)
         {
