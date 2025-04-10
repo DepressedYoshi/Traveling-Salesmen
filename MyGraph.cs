@@ -248,6 +248,65 @@ public List<T> GetShortestPathDFS(T start, T goal)
     return bestPath;
 }
 
+public List<T> Dijkstra(T start, T goal)
+{
+    Dictionary<T, float> distances = new Dictionary<T, float>();
+    Dictionary<T, T> previous = new Dictionary<T, T>();
+    HashSet<T> visited = new HashSet<T>();
+
+    foreach (var vertex in adjacencyMap.Keys)
+    {
+        distances[vertex] = float.MaxValue;
+        previous[vertex] = default;
+    }
+    distances[start] = 0;
+
+    var pq = new SortedSet<(float, T)>(Comparer<(float, T)>.Create((a, b) =>
+    {
+        int cmp = a.Item1.CompareTo(b.Item1);
+        return cmp == 0 ? Comparer<T>.Default.Compare(a.Item2, b.Item2) : cmp;
+    }));
+
+    pq.Add((0, start));
+
+    while (pq.Count > 0)
+    {
+        var (dist, current) = pq.Min;
+        pq.Remove(pq.Min);
+
+        if (visited.Contains(current)) continue;
+        visited.Add(current);
+
+        if (current.Equals(goal)) break;
+
+        foreach (var neighbor in adjacencyMap[current])
+        {
+            if (visited.Contains(neighbor.Key)) continue;
+
+            float alt = dist + Convert.ToSingle(neighbor.Value);
+            if (alt < distances[neighbor.Key])
+            {
+                distances[neighbor.Key] = alt;
+                previous[neighbor.Key] = current;
+                pq.Add((alt, neighbor.Key));
+            }
+        }
+    }
+
+    // Reconstruct path
+    List<T> path = new List<T>();
+    if (!previous.ContainsKey(goal) || previous[goal] == null) return path; // No path found
+
+    for (T at = goal; !at.Equals(default(T)); at = previous[at])
+    {
+        path.Insert(0, at);
+        if (at.Equals(start)) break;
+    }
+
+    return path;
+}
+
+
 
     // Debugging: Print adjacency map
     public void PrintGraph()
