@@ -16,6 +16,11 @@ public class GraphManager : MonoBehaviour
     private LineRenderer tempLine;
     private GameObject tempEdgeObj;
 
+    //for traversal 
+    private Node startNode = null;
+    private Node endNode = null;
+
+
     private void Start()
     {
         graph = new MyGraph<Node, Edge>(false);
@@ -25,13 +30,6 @@ public class GraphManager : MonoBehaviour
     private void Update()
     {
         Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-        if (Input.GetKeyDown(KeyCode.Space) && vertices.Count >= 2)
-    {
-        // For testing, just use the first two nodes
-    
-        StartDFS(vertices[0], vertices[1]);
-    }
-
 
         if (Input.GetMouseButtonDown(0))
         {
@@ -58,12 +56,32 @@ public class GraphManager : MonoBehaviour
         }
     }
 
-    private void HandleVertexClick(GameObject clickedVertex)
+private void HandleVertexClick(GameObject clickedVertex)
+{
+    Node clickedNode = vertices.Find(node => node.vertexObj == clickedVertex);
+    if (clickedNode == null) return;
+
+    if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
     {
-        Node clickedNode = vertices.Find(node => node.vertexObj == clickedVertex);
+        // Pathfinding mode
+        if (startNode == null)
+        {
+            startNode = clickedNode;
+            startNode.Highlight(true);
+            Debug.Log("Start node selected: " + startNode.vertexObj.name);
+        }
+        else if (endNode == null && clickedNode != startNode)
+        {
+            endNode = clickedNode;
+            endNode.Highlight(true);
+            Debug.Log("End node selected: " + endNode.vertexObj.name);
 
-        if (clickedNode == null) return;
-
+            StartCoroutine(ComputeAndAnimate());
+        }
+    }
+    else
+    {
+        // Default behavior: create edges
         if (selectedVertex == null)
         {
             SelectVertex(clickedNode);
@@ -78,6 +96,7 @@ public class GraphManager : MonoBehaviour
             DeselectVertex();
         }
     }
+}
 
     private void CreateNewVertex(Vector2 position)
     {
@@ -214,12 +233,40 @@ public class GraphManager : MonoBehaviour
         }
     }
 
-    public void StartDFS(Node start, Node goal)
+ public IEnumerator AnimatePath(List<Node> path, float delay = 0.001f)
 {
-    StartCoroutine(DFS_Animate(start, goal));
+    foreach (var node in path)
+    {
+        node.Highlight(true);
+        yield return new WaitForSeconds(delay);
+        node.Highlight(false);
+    }
+
+    // Final path highlight
+    foreach (var node in path)
+    {
+        node.Highlight(true);
+    }
+}
+private IEnumerator ComputeAndAnimate()
+{
+    // Compute the shortest path using Dijkstra
+List<Node> path = new List<Node>(graph.DijkstraTraversal(startNode, endNode));
+
+    if (path != null && path.Count > 0)
+    {
+        yield return AnimatePath(path);
+    }
+    else
+    {
+        Debug.Log("No path found.");
+    }
+
+    // Reset for next run
+    startNode.Highlight(false);
+    endNode.Highlight(false);
+    startNode = null;
+    endNode = null;
+}
 }
 
-private IEnumerator DFS_Animate(Node start, Node goal)
-{
-    
-}

@@ -31,6 +31,19 @@ public class MyGraph<T, E>
         return adjacencyMap.Keys;
     }
 
+    private float GetEdgeWeight(E edgeValue)
+{
+    if (edgeValue is Edge e)
+    {
+        return e.weight;
+    }
+    else
+    {
+        return Convert.ToSingle(edgeValue);
+    }
+}
+
+
     // Returns the number of edges in the graph
     public int NumEdges()
     {
@@ -207,7 +220,7 @@ public class MyGraph<T, E>
 
     //traversal nighmare strats here 
 
-public List<T> GetShortestPathDFS(T start, T goal)
+public List<T> DFSTraversal(T start, T goal)
 {
     List<T> bestPath = null;
     float bestWeight = float.MaxValue;
@@ -234,7 +247,7 @@ public List<T> GetShortestPathDFS(T start, T goal)
             {
                 if (!visited.Contains(neighbor.Key))
                 {
-                    DFS(neighbor.Key, path, currentWeight + Convert.ToSingle(neighbor.Value));
+                    DFS(neighbor.Key, path, currentWeight + GetEdgeWeight(neighbor.Value));
                 }
             }
         }
@@ -248,7 +261,7 @@ public List<T> GetShortestPathDFS(T start, T goal)
     return bestPath;
 }
 
-public List<T> Dijkstra(T start, T goal)
+public List<T> DijkstraTraversal(T start, T goal)
 {
     Dictionary<T, float> distances = new Dictionary<T, float>();
     Dictionary<T, T> previous = new Dictionary<T, T>();
@@ -283,7 +296,7 @@ public List<T> Dijkstra(T start, T goal)
         {
             if (visited.Contains(neighbor.Key)) continue;
 
-            float alt = dist + Convert.ToSingle(neighbor.Value);
+            float alt = dist + GetEdgeWeight(neighbor.Value);
             if (alt < distances[neighbor.Key])
             {
                 distances[neighbor.Key] = alt;
