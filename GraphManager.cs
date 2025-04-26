@@ -11,6 +11,7 @@ public class GraphManager : MonoBehaviour
 
     private MyGraph<Node, Edge> graph;
     private List<Node> vertices;
+    private List<GameObject> edgeObjects =  new List<GameObject>();
     private Node selectedVertex = null;
 
     private LineRenderer tempLine;
@@ -35,10 +36,67 @@ public class GraphManager : MonoBehaviour
         {
             HandleMouseClick(mousePos);
         }
+        if (selectedVertex != null && Input.GetKeyDown(KeyCode.Delete)){    DeleteSelectedVertex();}
+
 
         UpdateTempLine(mousePos);
+        
 
     }
+
+   private void DeleteSelectedVertex()
+{
+    if (selectedVertex == null) return;
+
+    // Find all connected neighbors
+    List<Node> neighbors = new List<Node>();
+    foreach (var neighbor in graph.OutgoingEdges(selectedVertex))
+    {
+        neighbors.Add(neighbor.Item1);
+    }
+
+    // Destroy all edge GameObjects between selectedVertex and neighbors
+    foreach (var neighborNode in neighbors)
+    {
+        // Find the edge object visually between selectedVertex and neighborNode
+        foreach (var edgeObj in edgeObjects)
+        {
+            if (edgeObj == null) continue; // Skip already destroyed
+
+            LineRenderer lr = edgeObj.GetComponent<LineRenderer>();
+            if (lr == null) continue;
+
+            Vector3 start = lr.GetPosition(0);
+            Vector3 end = lr.GetPosition(1);
+            Vector3 selectedPos = selectedVertex.vertexObj.transform.position;
+            Vector3 neighborPos = neighborNode.vertexObj.transform.position;
+
+            // Compare positions (order doesn't matter because undirected)
+            if ((ApproximatelyEqual(start, selectedPos) && ApproximatelyEqual(end, neighborPos)) ||
+                (ApproximatelyEqual(start, neighborPos) && ApproximatelyEqual(end, selectedPos)))
+            {
+                Destroy(edgeObj);
+            }
+        }
+
+        graph.RemoveEdge(selectedVertex, neighborNode);
+    }
+
+    // Clean up the edge list to remove destroyed objects
+    edgeObjects.RemoveAll(e => e == null);
+
+    // Remove vertex from graph
+    graph.RemoveVertex(selectedVertex);
+
+    // Destroy vertex GameObject
+    Destroy(selectedVertex.vertexObj);
+
+    vertices.Remove(selectedVertex);
+
+    selectedVertex = null;
+
+    Debug.Log("Vertex and its connected edges fully deleted.");
+}
 
 
 
@@ -131,6 +189,7 @@ private void HandleVertexClick(GameObject clickedVertex)
             Edge newEdge = new Edge(lr, randomWeight);
             graph.InsertEdge(nodeA, nodeB, newEdge);
 
+            edgeObjects.Add(edgeObj);
             Debug.Log($"Created edge between {nodeA.vertexObj.name} and {nodeB.vertexObj.name} with weight {randomWeight}");
         }
         catch (Exception e)
@@ -268,5 +327,10 @@ List<Node> path = new List<Node>(graph.DijkstraTraversal(startNode, endNode));
     startNode = null;
     endNode = null;
 }
+private bool ApproximatelyEqual(Vector3 a, Vector3 b, float tolerance = 0.1f)
+{
+    return Vector3.Distance(a, b) < tolerance;
+}
+
 }
 
