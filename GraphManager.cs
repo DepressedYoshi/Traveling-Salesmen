@@ -4,6 +4,17 @@ using UnityEngine;
 using TMPro;
 using System.Collections;
 
+/*
+TO DO 
+UI: 
+- delect.switch path fidnning mode 
+- message board to see what happend - see message in debug log 
+- button - clear screen 
+- button - reset all esisting highlight and selection 
+- sliding bar adjust animation speed
+*/
+
+
 public class GraphManager : MonoBehaviour
 {
     public GameObject vertexPrefab;
@@ -20,6 +31,7 @@ public class GraphManager : MonoBehaviour
     //for traversal 
     private Node startNode = null;
     private Node endNode = null;
+    public float animationDelay = 0.05f;
 
 
     private void Start()
@@ -125,13 +137,13 @@ private void HandleVertexClick(GameObject clickedVertex)
         if (startNode == null)
         {
             startNode = clickedNode;
-            startNode.Highlight(true);
+            startNode.HighlightSelectedForPathfinding();
             Debug.Log("Start node selected: " + startNode.vertexObj.name);
         }
         else if (endNode == null && clickedNode != startNode)
         {
             endNode = clickedNode;
-            endNode.Highlight(true);
+            endNode.HighlightSelectedForPathfinding();
             Debug.Log("End node selected: " + endNode.vertexObj.name);
 
             StartCoroutine(ComputeAndAnimate());
@@ -242,14 +254,14 @@ private void HandleVertexClick(GameObject clickedVertex)
     private void SelectVertex(Node node)
     {
         selectedVertex = node;
-        selectedVertex.Highlight(true);
+        selectedVertex.SetOutline(true);
     }
 
     private void DeselectVertex()
     {
         if (selectedVertex != null)
         {
-            selectedVertex.Highlight(false);
+            selectedVertex.SetOutline(false);
             selectedVertex = null;
         }
     }
@@ -292,21 +304,49 @@ private void HandleVertexClick(GameObject clickedVertex)
         }
     }
 
- public IEnumerator AnimatePath(List<Node> path, float delay = 0.001f)
+
+public IEnumerator AnimatePath(List<Node> path)
 {
-    foreach (var node in path)
+    // Step 1: Reset all outlines first
+    foreach (var node in vertices)
     {
-        node.Highlight(true);
-        yield return new WaitForSeconds(delay);
-        node.Highlight(false);
+        node.ResetOutline();
+    }
+    foreach (var edgeObj in edgeObjects)
+    {
+        if (edgeObj == null) continue;
+        LineRenderer lr = edgeObj.GetComponent<LineRenderer>();
+        if (lr != null)
+        {
+            lr.startColor = Color.blue;
+            lr.endColor = Color.blue;
+        }
     }
 
-    // Final path highlight
-    foreach (var node in path)
+    // Step 2: Animate the path node-by-node
+    for (int i = 0; i < path.Count - 1; i++)
     {
-        node.Highlight(true);
+        Node current = path[i];
+        Node next = path[i + 1];
+
+        // Highlight the outline of the node
+        current.HighlightPath();
+
+        // Highlight the edge between current -> next
+        Edge connectingEdge = graph.GetEdge(current, next);
+        if (connectingEdge != null)
+        {
+            connectingEdge.HighlightPath();
+        }
+
+        yield return new WaitForSeconds(animationDelay);
     }
+
+    // Step 3: Highlight the final destination node outline
+    path[^1].HighlightPath();
 }
+
+
 private IEnumerator ComputeAndAnimate()
 {
     // Compute the shortest path using Dijkstra
@@ -322,8 +362,8 @@ List<Node> path = new List<Node>(graph.DijkstraTraversal(startNode, endNode));
     }
 
     // Reset for next run
-    startNode.Highlight(false);
-    endNode.Highlight(false);
+    startNode.ResetOutline();
+    endNode.ResetOutline();
     startNode = null;
     endNode = null;
 }

@@ -24,4 +24,28 @@ public class Edge
             line.endColor = Color.blue;
         }
     }
+    public void SetColor(Color color)
+{
+    if (line != null)
+    {
+        line.startColor = color;
+        line.endColor = color;
+    }
+}
+
+public void HighlightSelected()
+{
+    SetColor(Color.yellow); // Selected connection
+}
+
+public void HighlightPath()
+{
+    SetColor(Color.green); // Final path
+}
+
+public void ResetColor()
+{
+    SetColor(Color.blue); // Default connection color
+}
+
 }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using TMPro;
+using UnityEngine;
 
 public class MyGraph<T, E>
 {
@@ -251,15 +252,32 @@ public class MyGraph<T, E>
     }
 
     // ==================== Debugging ====================
+public void PrintGraph()
+{
+    Debug.Log("==== Current Graph ====");
 
-    public void PrintGraph()
+    foreach (var vertex in adjacencyMap)
     {
-        foreach (var vertex in adjacencyMap)
+        string output = $"Vertex [{GetVertexName(vertex.Key)}] -> ";
+
+        foreach (var neighbor in vertex.Value)
         {
-            Console.Write($"Vertex {vertex.Key}: ");
-            foreach (var neighbor in vertex.Value)
-                Console.Write($"({neighbor.Key}, {neighbor.Value}) ");
-            Console.WriteLine();
+            output += $"[{GetVertexName(neighbor.Key)}, Weight: {GetEdgeWeight(neighbor.Value):F1}] ";
         }
+
+        Debug.Log(output);
     }
+
+    Debug.Log("========================");
+}
+private string GetVertexName(T vertex)
+{
+    if (vertex is Node node)
+    {
+        return node.vertexObj.name;
+    }
+    return vertex.ToString();
+}
+
+
 }
