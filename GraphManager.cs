@@ -3,11 +3,12 @@ using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
 using System.Collections;
+using UnityEngine.EventSystems;
 
 /*
 TO DO 
 UI: 
-- delect.switch path fidnning mode 
+- select.switch path fidnning mode 
 - message board to see what happend - see message in debug log 
 - button - clear screen 
 - button - reset all esisting highlight and selection 
@@ -17,17 +18,20 @@ UI:
 
 public class GraphManager : MonoBehaviour
 {
+
+    public enum TraversalMode { Dijkstra, DFS }
+    public TraversalMode currentMode = TraversalMode.Dijkstra;
+//
+    public TextMeshProUGUI messageText;
+
     public GameObject vertexPrefab;
     public GameObject edgePrefab;
-
     private MyGraph<Node, Edge> graph;
     private List<Node> vertices;
-    private List<GameObject> edgeObjects =  new List<GameObject>();
+    private List<GameObject> edgeObjects =  new List<GameObject>(); //track the edges objects in unity, not the graph data stucture - controll the highlighting 
     private Node selectedVertex = null;
-
     private LineRenderer tempLine;
     private GameObject tempEdgeObj;
-
     //for traversal 
     private Node startNode = null;
     private Node endNode = null;
@@ -38,6 +42,7 @@ public class GraphManager : MonoBehaviour
     {
         graph = new MyGraph<Node, Edge>(false);
         vertices = new List<Node>();
+        LogMessage("okay I really hope it dont crash this time");
     }
 
     private void Update()
@@ -46,7 +51,10 @@ public class GraphManager : MonoBehaviour
 
         if (Input.GetMouseButtonDown(0))
         {
-            HandleMouseClick(mousePos);
+            if (!EventSystem.current.IsPointerOverGameObject())
+                {
+                    HandleMouseClick(mousePos);
+                 }
         }
         if (selectedVertex != null && Input.GetKeyDown(KeyCode.Delete)){    DeleteSelectedVertex();}
 
@@ -107,7 +115,7 @@ public class GraphManager : MonoBehaviour
 
     selectedVertex = null;
 
-    Debug.Log("Vertex and its connected edges fully deleted.");
+    LogMessage("Vertex and its connected edges fully deleted.");
 }
 
 
@@ -138,13 +146,13 @@ private void HandleVertexClick(GameObject clickedVertex)
         {
             startNode = clickedNode;
             startNode.HighlightSelectedForPathfinding();
-            Debug.Log("Start node selected: " + startNode.vertexObj.name);
+            LogMessage("Start node selected: " + startNode.vertexObj.name);
         }
         else if (endNode == null && clickedNode != startNode)
         {
             endNode = clickedNode;
             endNode.HighlightSelectedForPathfinding();
-            Debug.Log("End node selected: " + endNode.vertexObj.name);
+            LogMessage("End node selected: " + endNode.vertexObj.name);
 
             StartCoroutine(ComputeAndAnimate());
         }
@@ -202,7 +210,7 @@ private void HandleVertexClick(GameObject clickedVertex)
             graph.InsertEdge(nodeA, nodeB, newEdge);
 
             edgeObjects.Add(edgeObj);
-            Debug.Log($"Created edge between {nodeA.vertexObj.name} and {nodeB.vertexObj.name} with weight {randomWeight}");
+            LogMessage($"Created edge between {nodeA.vertexObj.name} and {nodeB.vertexObj.name} with weight {randomWeight}");
         }
         catch (Exception e)
         {
@@ -349,8 +357,16 @@ public IEnumerator AnimatePath(List<Node> path)
 
 private IEnumerator ComputeAndAnimate()
 {
-    // Compute the shortest path using Dijkstra
-List<Node> path = new List<Node>(graph.DijkstraTraversal(startNode, endNode));
+    List<Node> path = null;
+
+    if (currentMode == TraversalMode.Dijkstra)
+    {
+        path = new List<Node>(graph.DijkstraTraversal(startNode, endNode));
+    }
+    else if (currentMode == TraversalMode.DFS)
+    {
+        path = new List<Node>(graph.DFSTraversal(startNode, endNode));
+    }
 
     if (path != null && path.Count > 0)
     {
@@ -358,19 +374,127 @@ List<Node> path = new List<Node>(graph.DijkstraTraversal(startNode, endNode));
     }
     else
     {
-        Debug.Log("No path found.");
+        LogMessage("No path found.");
+        
     }
 
-    // Reset for next run
     startNode.ResetOutline();
     endNode.ResetOutline();
     startNode = null;
     endNode = null;
 }
+
 private bool ApproximatelyEqual(Vector3 a, Vector3 b, float tolerance = 0.1f)
 {
     return Vector3.Distance(a, b) < tolerance;
 }
+
+public void LogMessage(string message)
+{
+    if (messageText == null)
+    {
+        Debug.LogWarning("Message Text not assigned!");
+        return;
+    }
+
+    messageText.text += message + "\n";
+
+    Debug.Log(message); // Optional: still print to Unity console
+}
+public void ClearGraph()
+{
+    // Destroy all node GameObjects
+    foreach (var node in vertices)
+    {
+        if (node != null && node.vertexObj != null)
+        {
+            Destroy(node.vertexObj);
+        }
+    }
+
+    // Destroy all edge GameObjects
+    foreach (var edgeObj in edgeObjects)
+    {
+        if (edgeObj != null)
+        {
+            Destroy(edgeObj);
+        }
+    }
+
+    // Clear data structures
+    vertices.Clear();
+    edgeObjects.Clear();
+    graph = new MyGraph<Node, Edge>(false); // Create new empty graph
+
+    // Clear temp selections
+    selectedVertex = null;
+    startNode = null;
+    endNode = null;
+
+    LogMessage("Graph cleared.");
+}
+public void ResetHighlights()
+{
+    // Reset outlines on all nodes
+    foreach (var node in vertices)
+    {
+        if (node != null)
+        {
+            node.ResetOutline();
+        }
+    }
+
+    // Reset colors on all edges
+    foreach (var edgeObj in edgeObjects)
+    {
+        if (edgeObj == null) continue;
+        LineRenderer lr = edgeObj.GetComponent<LineRenderer>();
+        if (lr != null)
+        {
+            lr.startColor = Color.blue; // Default edge color
+            lr.endColor = Color.blue;
+        }
+    }
+
+    // Reset selections
+    selectedVertex = null;
+    startNode = null;
+    endNode = null;
+
+    LogMessage("Highlights reset.");
+}
+
+public void GenerateButton(){
+    GenerateRandomGraph(20,40);
+}
+public void GenerateRandomGraph(int numNodes, int numEdges)
+{
+    ClearGraph(); // Always start fresh!
+
+    float spawnRadius = 10f; // How far apart nodes are spread (adjustable)
+
+    // Step 1: Create random nodes
+    for (int i = 0; i < numNodes; i++)
+    {
+        Vector2 randomPos = UnityEngine.Random.insideUnitCircle * spawnRadius;
+        CreateNewVertex(randomPos);
+    }
+
+    // Step 2: Create random edges between nodes
+    for (int i = 0; i < numEdges; i++)
+    {
+        Node nodeA = vertices[UnityEngine.Random.Range(0, vertices.Count)];
+        Node nodeB = vertices[UnityEngine.Random.Range(0, vertices.Count)];
+
+        if (nodeA != nodeB && graph.GetEdge(nodeA, nodeB) == null)
+        {
+            CreateEdge(nodeA, nodeB);
+        }
+    }
+
+    LogMessage($"Generated random graph with {numNodes} nodes and {numEdges} edges.");
+}
+
 
 }
 
